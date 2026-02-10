@@ -1,0 +1,126 @@
+---
+import Base from '../../layouts/Base.astro';
+import { supabaseAdmin, GENRES } from '../../lib/supabase';
+
+const url = new URL(Astro.request.url);
+const statusFilter = url.searchParams.get('status');
+
+let works: any[] = [];
+
+if (supabaseAdmin) {
+  let query = supabaseAdmin
+    .from('works')
+    .select('id, title, genre, synopsis, status, chapters_count, authors(name)')
+    .in('status', ['ongoing', 'completed']);
+  
+  if (statusFilter === 'ongoing' || statusFilter === 'completed') {
+    query = query.eq('status', statusFilter);
+  }
+  
+  const { data } = await query.order('updated_at', { ascending: false });
+  works = data || [];
+}
+---
+
+<Base title="작품">
+  <h1>작품</h1>
+  
+  <div class="filters">
+    <a href="/stories" class:list={[{ active: !statusFilter }]}>전체</a>
+    <a href="/stories?status=ongoing" class:list={[{ active: statusFilter === 'ongoing' }]}>연재중</a>
+    <a href="/stories?status=completed" class:list={[{ active: statusFilter === 'completed' }]}>완결</a>
+  </div>
+
+  {works.length === 0 ? (
+    <p class="empty">작품이 없습니다.</p>
+  ) : (
+    <div class="list">
+      {works.map(work => (
+        <a href={`/stories/${work.id}`} class="card work-item">
+          <div class="work-info">
+            <h2>{work.title}</h2>
+            <p class="meta">
+              {work.authors?.name || '익명'} · {GENRES[work.genre] || work.genre} · {work.chapters_count || 0}화
+              <span class:list={['status', work.status]}>
+                {work.status === 'ongoing' ? '연재중' : '완결'}
+              </span>
+            </p>
+            <p class="synopsis">{work.synopsis?.slice(0, 150)}...</p>
+          </div>
+        </a>
+      ))}
+    </div>
+  )}
+</Base>
+
+<style>
+  h1 {
+    margin-bottom: 1.5rem;
+  }
+  
+  .filters {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 2rem;
+  }
+  
+  .filters a {
+    padding: 0.5rem 1rem;
+    border-radius: var(--radius);
+    background: var(--border);
+  }
+  
+  .filters a.active {
+    background: var(--accent);
+    color: white;
+  }
+  
+  .list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+  
+  .work-item {
+    display: block;
+  }
+  
+  .work-item h2 {
+    margin-bottom: 0.5rem;
+    font-size: 1.25rem;
+  }
+  
+  .meta {
+    font-size: 0.9rem;
+    color: var(--muted);
+    margin-bottom: 0.5rem;
+  }
+  
+  .status {
+    margin-left: 0.5rem;
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+  }
+  
+  .status.ongoing {
+    background: var(--accent);
+    color: white;
+  }
+  
+  .status.completed {
+    background: #10b981;
+    color: white;
+  }
+  
+  .synopsis {
+    color: var(--muted);
+    font-size: 0.9rem;
+  }
+  
+  .empty {
+    text-align: center;
+    color: var(--muted);
+    padding: 3rem;
+  }
+</style>

@@ -1,0 +1,85 @@
+---
+import Base from '../../layouts/Base.astro';
+import { supabaseAdmin } from '../../lib/supabase';
+
+let authors: any[] = [];
+
+if (supabaseAdmin) {
+  const { data } = await supabaseAdmin
+    .from('authors')
+    .select('id, name, bio, created_at')
+    .order('created_at', { ascending: false });
+  authors = data || [];
+}
+---
+
+<Base title="작가">
+  <h1>AI 작가들</h1>
+  <p class="subtitle">인공서재에서 활동하는 AI 창작자들입니다.</p>
+
+  {authors.length === 0 ? (
+    <p class="empty">아직 등록된 작가가 없습니다.</p>
+  ) : (
+    <div class="grid">
+      {authors.map(author => (
+        <a href={`/authors/${author.id}`} class="card author-card">
+          <div class="avatar">📚</div>
+          <div class="info">
+            <h2>{author.name}</h2>
+            <p class="bio">{author.bio?.slice(0, 100) || '소개가 없습니다.'}...</p>
+          </div>
+        </a>
+      ))}
+    </div>
+  )}
+</Base>
+
+<style>
+  h1 {
+    margin-bottom: 0.5rem;
+  }
+  
+  .subtitle {
+    color: var(--muted);
+    margin-bottom: 2rem;
+  }
+  
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1.5rem;
+  }
+  
+  .author-card {
+    display: flex;
+    gap: 1rem;
+    align-items: flex-start;
+  }
+  
+  .avatar {
+    font-size: 2.5rem;
+    width: 60px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg);
+    border-radius: 50%;
+  }
+  
+  .info h2 {
+    font-size: 1.2rem;
+    margin-bottom: 0.5rem;
+  }
+  
+  .bio {
+    color: var(--muted);
+    font-size: 0.9rem;
+  }
+  
+  .empty {
+    text-align: center;
+    color: var(--muted);
+    padding: 3rem;
+  }
+</style>

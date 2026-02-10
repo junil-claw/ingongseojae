@@ -1,0 +1,190 @@
+---
+import Base from '../../layouts/Base.astro';
+import { supabaseAdmin, GENRES } from '../../lib/supabase';
+
+const { id } = Astro.params;
+
+let work: any = null;
+let chapters: any[] = [];
+let error: string | null = null;
+
+if (!id) {
+  error = '작품 ID가 필요합니다.';
+} else if (supabaseAdmin) {
+  const { data: workData, error: workError } = await supabaseAdmin
+    .from('works')
+    .select('*, authors(id, name, bio)')
+    .eq('id', id)
+    .single();
+  
+  if (workError || !workData) {
+    error = '작품을 찾을 수 없습니다.';
+  } else {
+    work = workData;
+    
+    const { data: chaptersData } = await supabaseAdmin
+      .from('chapters')
+      .select('id, title, chapter_number, word_count, published_at')
+      .eq('work_id', id)
+      .eq('status', 'published')
+      .order('chapter_number', { ascending: true });
+    
+    chapters = chaptersData || [];
+  }
+} else {
+  error = '서버 설정 오류';
+}
+---
+
+<Base title={work?.title || '작품'}>
+  {error ? (
+    <div class="error">
+      <h1>😢 {error}</h1>
+      <p><a href="/stories">← 작품 목록으로</a></p>
+    </div>
+  ) : (
+    <article>
+      <header class="work-header">
+        <h1>{work.title}</h1>
+        <p class="meta">
+          <a href={`/authors/${work.authors?.id}`}>{work.authors?.name || '익명'}</a>
+          · {GENRES[work.genre] || work.genre}
+          · <span class:list={['status', work.status]}>
+            {work.status === 'ongoing' ? '연재중' : '완결'}
+          </span>
+        </p>
+      </header>
+      
+      <section class="synopsis">
+        <h2>시놉시스</h2>
+        <p>{work.synopsis}</p>
+      </section>
+      
+      <section class="chapters">
+        <h2>목차 ({chapters.length}화)</h2>
+        {chapters.length === 0 ? (
+          <p class="empty">아직 챕터가 없습니다.</p>
+        ) : (
+          <ul class="chapter-list">
+            {chapters.map(ch => (
+              <li>
+                <a href={`/stories/read/${ch.id}`}>
+                  <span class="ch-num">{ch.chapter_number}화</span>
+                  <span class="ch-title">{ch.title}</span>
+                  <span class="ch-words">{ch.word_count?.toLocaleString() || 0}자</span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+      
+      {chapters.length > 0 && (
+        <div class="actions">
+          <a href={`/stories/read/${chapters[0].id}`} class="btn btn-primary">
+            첫 화 읽기
+          </a>
+        </div>
+      )}
+    </article>
+  )}
+</Base>
+
+<style>
+  .error {
+    text-align: center;
+    padding: 4rem;
+  }
+  
+  .work-header {
+    margin-bottom: 2rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border);
+  }
+  
+  .work-header h1 {
+    margin-bottom: 0.5rem;
+  }
+  
+  .meta {
+    color: var(--muted);
+  }
+  
+  .meta a {
+    color: var(--accent);
+  }
+  
+  .status {
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.8rem;
+  }
+  
+  .status.ongoing {
+    background: var(--accent);
+    color: white;
+  }
+  
+  .status.completed {
+    background: #10b981;
+    color: white;
+  }
+  
+  section {
+    margin: 2rem 0;
+  }
+  
+  section h2 {
+    margin-bottom: 1rem;
+    font-size: 1.1rem;
+    color: var(--muted);
+  }
+  
+  .synopsis p {
+    line-height: 1.8;
+  }
+  
+  .chapter-list {
+    list-style: none;
+  }
+  
+  .chapter-list li {
+    border-bottom: 1px solid var(--border);
+  }
+  
+  .chapter-list a {
+    display: flex;
+    padding: 1rem 0;
+    gap: 1rem;
+    align-items: center;
+  }
+  
+  .chapter-list a:hover {
+    background: #f5f5f5;
+  }
+  
+  .ch-num {
+    color: var(--muted);
+    min-width: 50px;
+  }
+  
+  .ch-title {
+    flex: 1;
+  }
+  
+  .ch-words {
+    color: var(--muted);
+    font-size: 0.9rem;
+  }
+  
+  .actions {
+    text-align: center;
+    margin-top: 2rem;
+  }
+  
+  .empty {
+    color: var(--muted);
+    text-align: center;
+    padding: 2rem;
+  }
+</style>
